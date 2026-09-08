@@ -1,0 +1,621 @@
+<meta charset="utf-8">
+<title>Inventory System Architecture</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#f6f7fa;
+    --surface:#ffffff;
+    --surface-2:#eef1f6;
+    --border:#dde3ec;
+    --ink:#0f172a;
+    --muted:#5b6b82;
+    --accent:#2f5fdb;
+    --accent-ink:#1c3f9e;
+    --ok:#15803d; --ok-bg:#e7f5ec;
+    --info:#2f5fdb; --info-bg:#e8eefc;
+    --warn:#b45309; --warn-bg:#fbf1de;
+    --bad:#b91c1c; --bad-bg:#fbe9e9;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 24px -12px rgba(15,23,42,.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0a0f1c;
+      --surface:#111a2b;
+      --surface-2:#162135;
+      --border:#26324a;
+      --ink:#e8ecf6;
+      --muted:#93a3c0;
+      --accent:#7fa2ff;
+      --accent-ink:#a9c1ff;
+      --ok:#4ade80; --ok-bg:#123522;
+      --info:#7fa2ff; --info-bg:#182948;
+      --warn:#fbbf24; --warn-bg:#3a2c0f;
+      --bad:#f87171; --bad-bg:#3a1616;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0a0f1c;
+    --surface:#111a2b;
+    --surface-2:#162135;
+    --border:#26324a;
+    --ink:#e8ecf6;
+    --muted:#93a3c0;
+    --accent:#7fa2ff;
+    --accent-ink:#a9c1ff;
+    --ok:#4ade80; --ok-bg:#123522;
+    --info:#7fa2ff; --info-bg:#182948;
+    --warn:#fbbf24; --warn-bg:#3a2c0f;
+    --bad:#f87171; --bad-bg:#3a1616;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  code, .mono, .k, .port, .path{
+    font-family:"IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  }
+
+  .wrap{
+    max-width:920px;
+    margin:0 auto;
+    padding:56px 24px 96px;
+  }
+
+  header.masthead{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    padding-bottom:28px;
+    margin-bottom:36px;
+    border-bottom:1px solid var(--border);
+  }
+  .eyebrow{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:12px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+  }
+  h1{
+    font-size:32px;
+    font-weight:700;
+    letter-spacing:-.01em;
+    margin:0;
+    text-wrap:balance;
+  }
+  .dek{
+    font-size:16px;
+    color:var(--muted);
+    max-width:60ch;
+    line-height:1.55;
+    margin:0;
+  }
+  .stack-badges{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:6px;
+  }
+  .badge{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:12px;
+    padding:4px 10px;
+    border-radius:99px;
+    border:1px solid var(--border);
+    color:var(--muted);
+    background:var(--surface);
+  }
+
+  section{ margin-bottom:52px; }
+  h2{
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:.07em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:0 0 18px;
+  }
+  h3{
+    font-size:16px;
+    font-weight:600;
+    margin:0 0 4px;
+    letter-spacing:-.005em;
+  }
+  p{ line-height:1.6; color:var(--ink); margin:0 0 12px; }
+  p.small{ color:var(--muted); font-size:14px; line-height:1.6; }
+
+  /* ---- diagram ---- */
+  .diagram-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    box-shadow:var(--shadow);
+    padding:20px 20px 8px;
+  }
+  .diagram-card svg{ width:100%; height:auto; display:block; }
+  .tier-box rect{ fill:var(--surface-2); stroke:var(--border); }
+  .tier-title{ font-family:"IBM Plex Sans"; font-weight:600; fill:var(--ink); }
+  .tier-sub{ font-family:"IBM Plex Mono"; fill:var(--muted); }
+  .tier-item{ font-family:"IBM Plex Mono"; fill:var(--muted); }
+  .flow-line{ stroke:var(--accent); stroke-width:1.6; fill:none; }
+  .flow-label{ font-family:"IBM Plex Mono"; fill:var(--accent-ink); font-weight:500; }
+  .flow-label-bg{ fill:var(--surface); }
+  .port-pill rect{ fill:var(--info-bg); }
+  .port-pill text{ fill:var(--info); font-family:"IBM Plex Mono"; font-weight:600; }
+
+  /* ---- tech stack cards ---- */
+  .tier-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:14px;
+  }
+  @media (max-width:720px){ .tier-grid{ grid-template-columns:1fr; } }
+  .tier-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:18px 18px 16px;
+    box-shadow:var(--shadow);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .tier-card .role{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:11px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+  }
+  .tier-card ul{
+    list-style:none;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+    border-top:1px solid var(--border);
+    padding-top:10px;
+  }
+  .tier-card li{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    font-size:13.5px;
+  }
+  .tier-card li .lib{ color:var(--ink); font-weight:500; }
+  .tier-card li .ver{ color:var(--muted); font-family:"IBM Plex Mono", monospace; font-size:12.5px; font-variant-numeric:tabular-nums; }
+
+  /* ---- flow steps ---- */
+  .flow-steps{
+    display:flex;
+    flex-direction:column;
+    border:1px solid var(--border);
+    border-radius:10px;
+    overflow:hidden;
+    background:var(--surface);
+    box-shadow:var(--shadow);
+  }
+  .flow-step{
+    display:grid;
+    grid-template-columns:40px 1fr;
+    gap:14px;
+    padding:14px 18px;
+  }
+  .flow-step + .flow-step{ border-top:1px solid var(--border); }
+  .flow-num{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:13px;
+    font-weight:600;
+    color:var(--accent);
+    padding-top:1px;
+  }
+  .flow-step p{ margin:0; font-size:14.5px; line-height:1.55; }
+  .flow-step .file{
+    color:var(--accent-ink);
+    background:var(--info-bg);
+    padding:1px 5px;
+    border-radius:4px;
+    font-size:12.5px;
+  }
+
+  /* ---- endpoint table ---- */
+  .table-wrap{ overflow-x:auto; border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); background:var(--surface); }
+  table{ border-collapse:collapse; width:100%; font-size:13.5px; min-width:640px; }
+  thead th{
+    text-align:left;
+    font-family:"IBM Plex Mono", monospace;
+    font-size:11px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:600;
+    padding:10px 16px;
+    border-bottom:1px solid var(--border);
+    background:var(--surface-2);
+  }
+  tbody td{
+    padding:10px 16px;
+    border-bottom:1px solid var(--border);
+    vertical-align:top;
+    color:var(--ink);
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  .method{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:11.5px;
+    font-weight:700;
+    padding:2px 7px;
+    border-radius:5px;
+    background:var(--ok-bg);
+    color:var(--ok);
+    white-space:nowrap;
+  }
+  .method.post{ background:var(--info-bg); color:var(--info); }
+  td.path{ font-size:13px; white-space:nowrap; }
+  td.desc{ color:var(--muted); }
+  .qp{
+    display:inline-block;
+    font-family:"IBM Plex Mono", monospace;
+    font-size:11.5px;
+    color:var(--muted);
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    padding:1px 6px;
+    border-radius:4px;
+    margin:2px 4px 0 0;
+  }
+
+  /* ---- data files grid ---- */
+  .file-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:10px;
+  }
+  @media (max-width:720px){ .file-grid{ grid-template-columns:repeat(2,1fr); } }
+  .file-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:9px;
+    padding:12px 14px;
+    box-shadow:var(--shadow);
+  }
+  .file-card .fname{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:12.5px;
+    color:var(--ink);
+    display:block;
+    margin-bottom:6px;
+    word-break:break-all;
+  }
+  .file-card .count{
+    font-size:20px;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+    color:var(--accent);
+    line-height:1;
+  }
+  .file-card .unit{
+    font-size:11px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.05em;
+  }
+
+  /* ---- component lists ---- */
+  .comp-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  @media (max-width:720px){ .comp-grid{ grid-template-columns:1fr; } }
+  .comp-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px 18px;
+    box-shadow:var(--shadow);
+  }
+  .comp-card .tag-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:10px;
+  }
+  .comp-card .tag{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:12px;
+    padding:3px 8px;
+    border-radius:6px;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    color:var(--ink);
+  }
+
+  .callout{
+    border:1px solid var(--border);
+    border-left:3px solid var(--warn);
+    background:var(--warn-bg);
+    border-radius:0 8px 8px 0;
+    padding:14px 16px;
+    display:flex;
+    gap:12px;
+  }
+  .callout .dot{
+    flex:none;
+    width:8px; height:8px;
+    border-radius:50%;
+    background:var(--warn);
+    margin-top:7px;
+  }
+  .callout p{ margin:0; font-size:13.5px; line-height:1.6; color:var(--ink); }
+  .callout .lead{ font-weight:600; color:var(--warn); }
+
+  footer{
+    border-top:1px solid var(--border);
+    padding-top:20px;
+    color:var(--muted);
+    font-size:12.5px;
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="eyebrow">System Reference</span>
+    <h1>Factory Inventory Management — Architecture</h1>
+    <p class="dek">A three-tier demo application: a Vue 3 single-page app talks to a FastAPI backend over JSON, which filters an in-memory copy of the data on every request. Nothing is persisted — the JSON files under <code>server/data/</code> are the only source of truth, reloaded fresh each time the server starts.</p>
+    <div class="stack-badges">
+      <span class="badge">Vue 3 · Composition API</span>
+      <span class="badge">Vue Router 4</span>
+      <span class="badge">Axios</span>
+      <span class="badge">Vite 5</span>
+      <span class="badge">FastAPI</span>
+      <span class="badge">Pydantic v2</span>
+      <span class="badge">Uvicorn</span>
+      <span class="badge">No database</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>System Architecture</h2>
+    <div class="diagram-card">
+      <svg viewBox="0 0 940 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three tier architecture: Vue client, FastAPI server, JSON data files">
+        <!-- Client tier -->
+        <g class="tier-box">
+          <rect x="16" y="24" width="222" height="252" rx="10"/>
+        </g>
+        <text x="34" y="54" class="tier-title" font-size="15">Browser · Vue 3 SPA</text>
+        <text x="34" y="72" class="tier-sub" font-size="11">client/src/</text>
+        <text x="34" y="98" class="tier-item" font-size="12">App.vue + FilterBar</text>
+        <text x="34" y="118" class="tier-item" font-size="12">router (6 routes)</text>
+        <text x="34" y="138" class="tier-item" font-size="12">7 views · 9 components</text>
+        <text x="34" y="158" class="tier-item" font-size="12">useFilters / useAuth / useI18n</text>
+        <text x="34" y="178" class="tier-item" font-size="12">api.js (axios client)</text>
+        <g class="port-pill">
+          <rect x="34" y="228" width="96" height="26" rx="13"/>
+          <text x="82" y="245" font-size="12" text-anchor="middle">:3000</text>
+        </g>
+
+        <!-- Server tier -->
+        <g class="tier-box">
+          <rect x="359" y="24" width="222" height="252" rx="10"/>
+        </g>
+        <text x="377" y="54" class="tier-title" font-size="15">FastAPI Server</text>
+        <text x="377" y="72" class="tier-sub" font-size="11">server/main.py</text>
+        <text x="377" y="98" class="tier-item" font-size="12">14 route handlers</text>
+        <text x="377" y="118" class="tier-item" font-size="12">apply_filters()</text>
+        <text x="377" y="138" class="tier-item" font-size="12">filter_by_month()</text>
+        <text x="377" y="158" class="tier-item" font-size="12">Pydantic response models</text>
+        <text x="377" y="178" class="tier-item" font-size="12">CORS: allow_origins=&quot;*&quot;</text>
+        <g class="port-pill">
+          <rect x="377" y="228" width="96" height="26" rx="13"/>
+          <text x="425" y="245" font-size="12" text-anchor="middle">:8001</text>
+        </g>
+
+        <!-- Data tier -->
+        <g class="tier-box">
+          <rect x="702" y="24" width="222" height="252" rx="10"/>
+        </g>
+        <text x="720" y="54" class="tier-title" font-size="15">In-memory data</text>
+        <text x="720" y="72" class="tier-sub" font-size="11">server/mock_data.py</text>
+        <text x="720" y="98" class="tier-item" font-size="12">7 JSON files</text>
+        <text x="720" y="118" class="tier-item" font-size="12">loaded once at startup</text>
+        <text x="720" y="138" class="tier-item" font-size="12">held as Python lists / dicts</text>
+        <text x="720" y="158" class="tier-item" font-size="12">no writes persist to disk</text>
+        <text x="720" y="178" class="tier-item" font-size="12">server/data/*.json</text>
+
+        <!-- arrows -->
+        <path class="flow-line" marker-end="url(#arrow)" d="M238,110 H359"/>
+        <path class="flow-line" marker-end="url(#arrow)" d="M359,150 H238"/>
+        <rect class="flow-label-bg" x="246" y="86" width="66" height="16"/>
+        <text x="279" y="98" class="flow-label" font-size="11" text-anchor="middle">GET /api/*</text>
+        <rect class="flow-label-bg" x="246" y="156" width="66" height="16"/>
+        <text x="279" y="168" class="flow-label" font-size="11" text-anchor="middle">JSON body</text>
+
+        <path class="flow-line" marker-end="url(#arrow)" d="M702,110 H581"/>
+        <rect class="flow-label-bg" x="589" y="86" width="106" height="16"/>
+        <text x="642" y="98" class="flow-label" font-size="11" text-anchor="middle">json.load() once</text>
+        <path class="flow-line" marker-end="url(#arrow)" d="M581,150 H702"/>
+        <rect class="flow-label-bg" x="589" y="156" width="94" height="16"/>
+        <text x="636" y="168" class="flow-label" font-size="11" text-anchor="middle">filter in Python</text>
+
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 z" fill="var(--accent)"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tech Stack</h2>
+    <div class="tier-grid">
+      <div class="tier-card">
+        <div class="role">Client — port 3000</div>
+        <h3>Vue 3</h3>
+        <p class="small">Single-page app built with the Composition API throughout; state lives in <code>ref()</code>s, derived values in <code>computed()</code>.</p>
+        <ul>
+          <li><span class="lib">vue</span><span class="ver">^3.4.21</span></li>
+          <li><span class="lib">vue-router</span><span class="ver">^4.3.0</span></li>
+          <li><span class="lib">axios</span><span class="ver">^1.6.7</span></li>
+          <li><span class="lib">vite</span><span class="ver">^5.2.0</span></li>
+        </ul>
+      </div>
+      <div class="tier-card">
+        <div class="role">Server — port 8001</div>
+        <h3>FastAPI</h3>
+        <p class="small">Route handlers filter Python lists in place and let <code>response_model</code> validate the shape on the way out.</p>
+        <ul>
+          <li><span class="lib">fastapi</span><span class="ver">≥0.110</span></li>
+          <li><span class="lib">pydantic</span><span class="ver">≥2.5</span></li>
+          <li><span class="lib">uvicorn</span><span class="ver">≥0.24</span></li>
+        </ul>
+      </div>
+      <div class="tier-card">
+        <div class="role">Data — no database</div>
+        <h3>Flat JSON</h3>
+        <p class="small">Seven files under <code>server/data/</code> are read into memory once at process start and never written back.</p>
+        <ul>
+          <li><span class="lib">Storage</span><span class="ver">JSON files</span></li>
+          <li><span class="lib">Loader</span><span class="ver">mock_data.py</span></li>
+          <li><span class="lib">Persistence</span><span class="ver">none</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Request / Data Flow</h2>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <span class="flow-num">01</span>
+        <p>A user changes a filter in <span class="file">FilterBar.vue</span> (Time Period, Warehouse, Category, or Order Status) — the shared state lives in the <span class="file">useFilters</span> composable, not the component.</p>
+      </div>
+      <div class="flow-step">
+        <span class="flow-num">02</span>
+        <p>The active view (e.g. <span class="file">Dashboard.vue</span>) reads the current filters and calls its loader, which sets <code>loading.value = true</code> and awaits <span class="file">api.js</span>.</p>
+      </div>
+      <div class="flow-step">
+        <span class="flow-num">03</span>
+        <p><span class="file">api.js</span> builds a query string, skipping any filter set to <code>"all"</code>, and sends the request with axios — e.g. <code>GET /api/dashboard/summary?warehouse=West&amp;month=2025-09</code>.</p>
+      </div>
+      <div class="flow-step">
+        <span class="flow-num">04</span>
+        <p>FastAPI routes the request to a handler in <span class="file">main.py</span>, which runs <code>apply_filters()</code> / <code>filter_by_month()</code> over the in-memory list already loaded by <span class="file">mock_data.py</span>.</p>
+      </div>
+      <div class="flow-step">
+        <span class="flow-num">05</span>
+        <p>The filtered result is validated against a Pydantic <code>response_model</code> and returned as JSON — malformed data raises a 422 before it reaches the client.</p>
+      </div>
+      <div class="flow-step">
+        <span class="flow-num">06</span>
+        <p>Back in the view, the response is stored in a raw ref (e.g. <code>allOrders</code>); computed properties derive totals, chart series, and table rows, and Vue re-renders the affected DOM only.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>API Surface — server/main.py</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Method</th><th>Path</th><th>Query params</th><th>Returns</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/inventory</td><td><span class="qp">warehouse</span><span class="qp">category</span></td><td class="desc">Inventory items</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/inventory/{id}</td><td>—</td><td class="desc">Single item · 404 if missing</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/orders</td><td><span class="qp">warehouse</span><span class="qp">category</span><span class="qp">status</span><span class="qp">month</span></td><td class="desc">Orders (250 records)</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/orders/{id}</td><td>—</td><td class="desc">Single order · 404 if missing</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/demand</td><td>—</td><td class="desc">Demand forecasts</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/backlog</td><td>—</td><td class="desc">Backlog + has_purchase_order flag</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/dashboard/summary</td><td><span class="qp">warehouse</span><span class="qp">category</span><span class="qp">status</span><span class="qp">month</span></td><td class="desc">KPI totals for the dashboard</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/spending/summary</td><td>—</td><td class="desc">Spending totals</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/spending/monthly</td><td>—</td><td class="desc">Monthly spending series</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/spending/categories</td><td>—</td><td class="desc">Spending by category</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/spending/transactions</td><td>—</td><td class="desc">Recent transactions (56)</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/reports/quarterly</td><td>—</td><td class="desc">Orders rolled up by quarter</td></tr>
+          <tr><td><span class="method">GET</span></td><td class="path">/api/reports/monthly-trends</td><td>—</td><td class="desc">Orders rolled up by month</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Frontend Structure — client/src/</h2>
+    <div class="comp-grid">
+      <div class="comp-card">
+        <h3>Views · routed pages</h3>
+        <p class="small">One per <code>router.routes</code> entry in <code>main.js</code>.</p>
+        <div class="tag-list">
+          <span class="tag">Dashboard</span><span class="tag">Inventory</span><span class="tag">Orders</span>
+          <span class="tag">Demand</span><span class="tag">Spending</span><span class="tag">Reports</span>
+          <span class="tag">Backlog</span>
+        </div>
+      </div>
+      <div class="comp-card">
+        <h3>Composables · shared state</h3>
+        <p class="small">Module-scoped refs shared across every component that imports them.</p>
+        <div class="tag-list">
+          <span class="tag">useFilters</span><span class="tag">useAuth</span><span class="tag">useI18n</span>
+        </div>
+      </div>
+      <div class="comp-card">
+        <h3>Components · reusable UI</h3>
+        <p class="small">Detail modals and chrome, composed into the views above.</p>
+        <div class="tag-list">
+          <span class="tag">FilterBar</span><span class="tag">InventoryDetailModal</span><span class="tag">ProductDetailModal</span>
+          <span class="tag">CostDetailModal</span><span class="tag">BacklogDetailModal</span><span class="tag">TasksModal</span>
+          <span class="tag">ProfileMenu</span><span class="tag">ProfileDetailsModal</span><span class="tag">LanguageSwitcher</span>
+        </div>
+      </div>
+      <div class="comp-card">
+        <h3>Filter System</h3>
+        <p class="small">Four filters apply across nearly every endpoint — inventory is the one exception, since stock has no time dimension.</p>
+        <div class="tag-list">
+          <span class="tag">Time Period</span><span class="tag">Warehouse</span><span class="tag">Category</span><span class="tag">Order Status</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Data Files — server/data/</h2>
+    <div class="file-grid">
+      <div class="file-card"><span class="fname">orders.json</span><span class="count">250</span><span class="unit">records</span></div>
+      <div class="file-card"><span class="fname">transactions.json</span><span class="count">56</span><span class="unit">records</span></div>
+      <div class="file-card"><span class="fname">inventory.json</span><span class="count">32</span><span class="unit">records</span></div>
+      <div class="file-card"><span class="fname">demand_forecasts.json</span><span class="count">9</span><span class="unit">records</span></div>
+      <div class="file-card"><span class="fname">backlog_items.json</span><span class="count">4</span><span class="unit">records</span></div>
+      <div class="file-card"><span class="fname">purchase_orders.json</span><span class="count">0</span><span class="unit">records</span></div>
+      <div class="file-card"><span class="fname">spending.json</span><span class="count">3</span><span class="unit">keyed sections</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Worth Knowing</h2>
+    <div class="callout">
+      <span class="dot"></span>
+      <p><span class="lead">api.js calls two endpoints main.py doesn't define. </span>The client's <code>getTasks</code>, <code>createTask</code>, <code>toggleTask</code>, <code>deleteTask</code>, <code>createPurchaseOrder</code>, and <code>getPurchaseOrderByBacklogItem</code> target <code>/api/tasks</code> and <code>/api/purchase-orders</code>, but no matching routes exist in <code>server/main.py</code> today — those calls will 404 until the routes are added.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>Factory Inventory Management System · demo app, no auth, no database</span>
+    <span>Generated from the codebase at <code>inventory-management/</code></span>
+  </footer>
+
+</div>
