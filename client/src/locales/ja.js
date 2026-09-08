@@ -6,6 +6,7 @@ export default {
     orders: '注文',
     finance: '財務',
     demandForecast: '需要予測',
+    reports: 'レポート',
     companyName: '触媒コンポーネンツ',
     subtitle: '在庫管理システム'
   },
@@ -55,7 +56,10 @@ export default {
       daysDelayed: '遅延日数',
       priority: '優先度',
       unitsShort: '単位不足',
-      days: '日'
+      days: '日',
+      actions: '操作',
+      createPO: '発注書を作成',
+      viewPO: '発注書を表示'
     },
     topProducts: {
       title: '収益別トップ製品',
@@ -302,6 +306,32 @@ export default {
     dueDate: '期限',
     addTask: 'タスクを追加',
     noTasks: 'タスクがありません。上記からタスクを追加してください！'
+  },
+
+  // Purchase Order Modal
+  purchaseOrder: {
+    createTitle: '発注書を作成',
+    viewTitle: '発注書の詳細',
+    skuLabel: 'SKU',
+    shortageLabel: '不足数',
+    supplierName: '仕入先名',
+    supplierNamePlaceholder: '仕入先名を入力...',
+    quantity: '数量',
+    unitCost: '単価',
+    expectedDeliveryDate: '納品予定日',
+    notes: '備考',
+    notesPlaceholder: '備考を入力（任意）...',
+    totalCost: '合計金額',
+    status: 'ステータス',
+    statusPending: '保留中',
+    createdDate: '作成日',
+    loading: '発注書を読み込み中...',
+    loadError: '発注書の読み込みに失敗しました。',
+    createError: '発注書の作成に失敗しました。もう一度お試しください。',
+    cancel: 'キャンセル',
+    close: '閉じる',
+    submit: '発注書を作成',
+    submitting: '作成中...'
   },
 
   // Language

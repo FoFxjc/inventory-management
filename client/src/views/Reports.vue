@@ -14,7 +14,7 @@
           <h3 class="card-title">Quarterly Performance</h3>
         </div>
         <div class="table-container">
-          <table class="reports-table">
+          <table>
             <thead>
               <tr>
                 <th>Quarter</th>
@@ -68,7 +68,7 @@
           <h3 class="card-title">Month-over-Month Analysis</h3>
         </div>
         <div class="table-container">
-          <table class="reports-table">
+          <table>
             <thead>
               <tr>
                 <th>Month</th>
@@ -125,93 +125,85 @@
 </template>
 
 <script>
-import axios from 'axios'
+import { ref, onMounted } from 'vue'
+import { api } from '../api'
 
 export default {
   name: 'Reports',
-  data() {
-    return {
-      loading: true,
-      error: null,
-      quarterlyData: [],
-      monthlyData: [],
-      totalRevenue: 0,
-      avgMonthlyRevenue: 0,
-      totalOrders: 0,
-      bestQuarter: ''
-    }
-  },
-  mounted() {
-    console.log('Reports component mounted')
-    this.loadData()
-  },
-  methods: {
-    async loadData() {
-      console.log('Loading reports data...')
-      try {
-        this.loading = true
+  setup() {
+    const loading = ref(true)
+    const error = ref(null)
+    const quarterlyData = ref([])
+    const monthlyData = ref([])
+    const totalRevenue = ref(0)
+    const avgMonthlyRevenue = ref(0)
+    const totalOrders = ref(0)
+    const bestQuarter = ref('')
 
-        // Fetch quarterly data
-        console.log('Fetching quarterly data...')
-        const quarterlyResponse = await axios.get('http://localhost:8001/api/reports/quarterly')
-        this.quarterlyData = quarterlyResponse.data
-        console.log('Quarterly data:', this.quarterlyData)
-
-        // Fetch monthly data
-        console.log('Fetching monthly data...')
-        const monthlyResponse = await axios.get('http://localhost:8001/api/reports/monthly-trends')
-        this.monthlyData = monthlyResponse.data
-        console.log('Monthly data:', this.monthlyData)
-
-        // Calculate summary stats
-        console.log('Calculating summary stats...')
-        this.calculateSummaryStats()
-        console.log('Summary stats calculated')
-
-      } catch (err) {
-        console.log('Error loading reports:', err)
-        this.error = 'Failed to load reports: ' + err.message
-      } finally {
-        this.loading = false
-        console.log('Loading complete')
-      }
-    },
-
-    calculateSummaryStats() {
+    const calculateSummaryStats = () => {
       // Calculate total revenue
       var total = 0
-      for (var i = 0; i < this.monthlyData.length; i++) {
-        total = total + this.monthlyData[i].revenue
+      for (var i = 0; i < monthlyData.value.length; i++) {
+        total = total + monthlyData.value[i].revenue
       }
-      this.totalRevenue = total
+      totalRevenue.value = total
 
       // Calculate average monthly revenue
-      if (this.monthlyData.length > 0) {
-        this.avgMonthlyRevenue = total / this.monthlyData.length
+      if (monthlyData.value.length > 0) {
+        avgMonthlyRevenue.value = total / monthlyData.value.length
       } else {
-        this.avgMonthlyRevenue = 0
+        avgMonthlyRevenue.value = 0
       }
 
       // Calculate total orders
       var orders = 0
-      for (var i = 0; i < this.monthlyData.length; i++) {
-        orders = orders + this.monthlyData[i].order_count
+      for (var i = 0; i < monthlyData.value.length; i++) {
+        orders = orders + monthlyData.value[i].order_count
       }
-      this.totalOrders = orders
+      totalOrders.value = orders
 
       // Find best quarter
       var bestQ = ''
       var bestRevenue = 0
-      for (var i = 0; i < this.quarterlyData.length; i++) {
-        if (this.quarterlyData[i].total_revenue > bestRevenue) {
-          bestRevenue = this.quarterlyData[i].total_revenue
-          bestQ = this.quarterlyData[i].quarter
+      for (var i = 0; i < quarterlyData.value.length; i++) {
+        if (quarterlyData.value[i].total_revenue > bestRevenue) {
+          bestRevenue = quarterlyData.value[i].total_revenue
+          bestQ = quarterlyData.value[i].quarter
         }
       }
-      this.bestQuarter = bestQ
-    },
+      bestQuarter.value = bestQ
+    }
 
-    formatNumber(num) {
+    const loadData = async () => {
+      console.log('Loading reports data...')
+      try {
+        loading.value = true
+
+        // Fetch quarterly data
+        console.log('Fetching quarterly data...')
+        quarterlyData.value = await api.getQuarterlyReports()
+        console.log('Quarterly data:', quarterlyData.value)
+
+        // Fetch monthly data
+        console.log('Fetching monthly data...')
+        monthlyData.value = await api.getMonthlyTrends()
+        console.log('Monthly data:', monthlyData.value)
+
+        // Calculate summary stats
+        console.log('Calculating summary stats...')
+        calculateSummaryStats()
+        console.log('Summary stats calculated')
+
+      } catch (err) {
+        console.log('Error loading reports:', err)
+        error.value = 'Failed to load reports: ' + err.message
+      } finally {
+        loading.value = false
+        console.log('Loading complete')
+      }
+    }
+
+    const formatNumber = (num) => {
       console.log('Formatting number:', num)
       // Format number with commas
       var str = num.toString()
@@ -237,9 +229,9 @@ export default {
       }
 
       return formatted + '.' + decPart
-    },
+    }
 
-    formatMonth(monthStr) {
+    const formatMonth = (monthStr) => {
       console.log('Formatting month:', monthStr)
       // Convert YYYY-MM to readable format
       var parts = monthStr.split('-')
@@ -250,15 +242,15 @@ export default {
       var monthIndex = parseInt(month) - 1
 
       return monthNames[monthIndex] + ' ' + year
-    },
+    }
 
-    getBarHeight(revenue) {
+    const getBarHeight = (revenue) => {
       console.log('Calculating bar height for revenue:', revenue)
       // Calculate bar height (max height 200px)
       var maxRevenue = 0
-      for (var i = 0; i < this.monthlyData.length; i++) {
-        if (this.monthlyData[i].revenue > maxRevenue) {
-          maxRevenue = this.monthlyData[i].revenue
+      for (var i = 0; i < monthlyData.value.length; i++) {
+        if (monthlyData.value[i].revenue > maxRevenue) {
+          maxRevenue = monthlyData.value[i].revenue
         }
       }
 
@@ -268,9 +260,9 @@ export default {
 
       var height = (revenue / maxRevenue) * 200
       return height
-    },
+    }
 
-    getFulfillmentClass(rate) {
+    const getFulfillmentClass = (rate) => {
       if (rate >= 90) {
         return 'badge success'
       } else if (rate >= 75) {
@@ -278,20 +270,20 @@ export default {
       } else {
         return 'badge danger'
       }
-    },
+    }
 
-    getChangeValue(current, previous) {
+    const getChangeValue = (current, previous) => {
       var change = current - previous
       if (change > 0) {
-        return '+$' + this.formatNumber(change)
+        return '+$' + formatNumber(change)
       } else if (change < 0) {
-        return '-$' + this.formatNumber(Math.abs(change))
+        return '-$' + formatNumber(Math.abs(change))
       } else {
         return '$0.00'
       }
-    },
+    }
 
-    getChangeClass(current, previous) {
+    const getChangeClass = (current, previous) => {
       var change = current - previous
       if (change > 0) {
         return 'positive-change'
@@ -300,9 +292,9 @@ export default {
       } else {
         return ''
       }
-    },
+    }
 
-    getGrowthRate(current, previous) {
+    const getGrowthRate = (current, previous) => {
       if (previous === 0) {
         return 'N/A'
       }
@@ -311,6 +303,29 @@ export default {
       var sign = rate > 0 ? '+' : ''
 
       return sign + rate.toFixed(1) + '%'
+    }
+
+    onMounted(() => {
+      console.log('Reports component mounted')
+      loadData()
+    })
+
+    return {
+      loading,
+      error,
+      quarterlyData,
+      monthlyData,
+      totalRevenue,
+      avgMonthlyRevenue,
+      totalOrders,
+      bestQuarter,
+      formatNumber,
+      formatMonth,
+      getBarHeight,
+      getFulfillmentClass,
+      getChangeValue,
+      getChangeClass,
+      getGrowthRate
     }
   }
 }
@@ -321,50 +336,8 @@ export default {
   padding: 0;
 }
 
-.card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.card-header {
-  margin-bottom: 1.5rem;
-}
-
-.card-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0;
-}
-
-.reports-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.reports-table th {
-  background: #f8fafc;
-  padding: 0.75rem;
-  text-align: left;
-  font-weight: 600;
-  color: #64748b;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-.reports-table td {
-  padding: 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.reports-table tr:hover {
-  background: #f8fafc;
-}
-
 .chart-container {
-  padding: 2rem 1rem;
+  padding: var(--space-8) var(--space-4);
   min-height: 300px;
 }
 
@@ -373,7 +346,8 @@ export default {
   align-items: flex-end;
   justify-content: space-around;
   height: 250px;
-  gap: 0.5rem;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--border);
 }
 
 .bar-wrapper {
@@ -393,96 +367,32 @@ export default {
 
 .bar {
   width: 100%;
-  background: linear-gradient(to top, #3b82f6, #60a5fa);
-  border-radius: 4px 4px 0 0;
+  background: var(--viz-1);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   transition: all 0.3s;
   cursor: pointer;
 }
 
 .bar:hover {
-  background: linear-gradient(to top, #2563eb, #3b82f6);
+  background: var(--accent-hover);
 }
 
 .bar-label {
-  margin-top: 0.5rem;
+  margin-top: var(--space-6);
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--muted);
   text-align: center;
   transform: rotate(-45deg);
   white-space: nowrap;
-  margin-top: 1.5rem;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-
-.stat-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid #3b82f6;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin-bottom: 0.5rem;
-}
-
-.stat-value {
-  font-size: 1.875rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.badge.success {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.badge.warning {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.badge.danger {
-  background: #fee2e2;
-  color: #991b1b;
 }
 
 .positive-change {
-  color: #16a34a;
+  color: var(--success);
   font-weight: 600;
 }
 
 .negative-change {
-  color: #dc2626;
+  color: var(--danger);
   font-weight: 600;
-}
-
-.loading {
-  text-align: center;
-  padding: 3rem;
-  color: #64748b;
-}
-
-.error {
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 1rem;
-  border-radius: 8px;
-  margin: 1rem 0;
 }
 </style>
